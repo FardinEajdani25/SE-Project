@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph.xml"
+    app:startDestination="@id/login_screen">
+
+    <composable
+        name="login_screen"
+        route="login_screen_route">
+        <destination
+            id="login_screen"
+            android:id="@+id/login_screen">
+            <action
+                id="go_to_user_screen"
+                app:destination="@id/user_screen"
+                app:popUpTo="@id/login_screen"
+                app:popUpToInclusive="true" />
+        </destination>
+    </composable>
+
+    <composable
+        name="user_screen"
+        route="user_screen_route">
+        <destination
+            id="user_screen"
+            android:id="@+id/user_screen" />
+    </composable>
+
+    <composable
+        name="admin_screen"
+        route="admin_screen_route">
+        <destination
+            id="admin_screen"
+            android:id="@+id/admin_screen" />
+    </composable>
+
+
+</navigation>
