@@ -1,5 +1,6 @@
 package sheridan.eajdani.myapplication
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,8 +41,10 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import sheridan.eajdani.myapplication.Database.Task
 import sheridan.eajdani.myapplication.Database.UserDao
 import sheridan.eajdani.myapplication.Database.UserEntity
+import java.util.Date
 
 var userName = ""
 var password = ""
@@ -64,8 +67,65 @@ fun Screens(userDao: UserDao) {
         composable("admin_screen") {
             AdminScreen(navController, userDao)
         }
+        composable("track_screen") {
+            TrackingScreen(navController, userDao)
+        }
     }
 }
+fun TotalTime(date1 : Date, date2: Date ) : Long{
+
+    val time1 = date1.time
+    val time2 = date2.time
+
+    val differenceInMillis = time2 - time1
+
+    val differenceInSeconds = differenceInMillis / 1000
+
+    return differenceInSeconds
+
+}
+
+@Composable
+fun TrackingScreen(navController: NavController, userDao: UserDao){
+    var userEntity  by remember { mutableStateOf(UserEntity(name = "", password = "", privilegeLevel = 1, tasks = mutableListOf(Task(taskId = 0, taskName = "", isCompleted = false, startTime = null, endTime = null)))) }
+    var isTask1done by remember { mutableStateOf(false) }
+    var isTask2done by remember { mutableStateOf(false) }
+    var isTask3done by remember { mutableStateOf(false) }
+    Column(
+        modifier = Modifier
+            .padding(16.dp)
+            .fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+
+        LaunchedEffect(Unit){
+
+            userEntity =  userDao.getUserByName("user")!!
+
+
+            }
+            userEntity.tasks!!.forEach { task ->
+                if (!task.isCompleted) {
+                    if (task.startTime != null) {
+                        Text(text = "${task.taskName} : In Progress" )
+                    } else {
+
+                        Text(text = "${task.taskName} : Not Started")
+                    }
+                }
+                else{
+
+                    Text(text = "${task.taskName}: Task completed at ${task.endTime}")
+                    Text(text = "Total Time : ${TotalTime(task.startTime!!, task.endTime!!)} seconds")
+                }
+            }
+        }
+
+
+    }
+
+
 
 @Composable
 fun LoginScreen(navController: NavController, userDao: UserDao) {
@@ -103,7 +163,20 @@ fun LoginScreen(navController: NavController, userDao: UserDao) {
 
 @Composable
 fun UserScreen(navController: NavController, userDao: UserDao) {
-    var userEntity  by remember { mutableStateOf(UserEntity(name = "", password = "", privilegeLevel = 1, tasks = emptyList())) }
+    var userEntity  by remember { mutableStateOf(UserEntity(name = "", password = "", privilegeLevel = 1, tasks = null)) }
+    var visibilityList4 by remember { mutableStateOf(ArrayList<Float>()) }
+    visibilityList4.add(1.0f)
+    visibilityList4.add(1.0f)
+    var visibilityList1 by remember { mutableStateOf(ArrayList<Float>()) }
+    visibilityList1.add(1.0f)
+    visibilityList1.add(1.0f)
+    var visibilityList2 by remember { mutableStateOf(ArrayList<Float>()) }
+    visibilityList2.add(0.0f)
+    visibilityList2.add(0.0f)
+    var visibility3 by remember { mutableStateOf(0.0f) }
+    var visibility5 by remember { mutableStateOf(0.0f) }
+
+    var isTaskStarted by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .padding(16.dp)
@@ -121,10 +194,64 @@ fun UserScreen(navController: NavController, userDao: UserDao) {
           userEntity =  userDao.getUserByName("user")!!
         }
         Text("Assigned Tasks By Admin" , modifier = Modifier.padding(16.dp))
-        userEntity.tasks!!.forEach {
+        if(userEntity.tasks == null){}
+        else {
+            userEntity.tasks!!.forEach { task ->
+                if (task.isCompleted == false) {
 
-            Text(text = it, modifier = Modifier.padding(16.dp))
+
+                    Row(modifier = Modifier.alpha(visibilityList4[task.taskId.toInt()])) {
+
+                        Text(text = task.taskName, modifier = Modifier.padding(16.dp))
+                        if(task.startTime == null){
+                        Button(onClick = {
+
+                            visibilityList1[task.taskId.toInt()] = 0.0f
+                            visibilityList2[task.taskId.toInt()] = 1.0f
+                            visibility3 = 0.0f
+                            visibility5 = 1.0f
+                            task.startTime = Date()
+                            GlobalScope.launch(Dispatchers.IO) {
+
+                                userDao.updateEntity(userEntity)
+
+                            }
+
+                        }, modifier = Modifier.alpha(visibilityList1[task.taskId.toInt()])) {
+                            Text(text = "Start Task")
+                             }
+                        } else{
+                            visibilityList1[task.taskId.toInt()] = 0.0f
+                            visibilityList2[task.taskId.toInt()] = 1.0f
+                            visibility3 = 0.0f
+                            visibility5 = 1.0f
+                        }
+                        Button(onClick = {
+
+                            visibility3 = 1.0f
+                            visibility5 = 0.0f
+                            visibilityList4[task.taskId.toInt()] = 0.0f
+                            task.endTime = Date()
+                            task.isCompleted = true
+                            GlobalScope.launch(Dispatchers.IO) {
+
+                                userDao.updateEntity(userEntity)
+
+                            }
+
+                        }, modifier = Modifier.alpha(visibilityList2[task.taskId.toInt()])) {
+                            Text(text = "End Task")
+
+                        }
+
+
+                    }
+                }
+
+            }
         }
+        Text(text = "Task Started", modifier = Modifier.alpha( visibility5) )
+        Text(text = "Task Completed", modifier = Modifier.alpha( visibility3) )
         Button(onClick = {
 
             navController.navigate("login_screen")
@@ -141,10 +268,19 @@ fun UserScreen(navController: NavController, userDao: UserDao) {
 fun AdminScreen(navController: NavController, userDao: UserDao) {
     var assignTasksVisibility by remember { mutableStateOf(0.0f) }
     var visibility by remember { mutableStateOf(1.0f) }
+    var isTask1Assigned by remember { mutableStateOf(false) }
+    var isTask2Assigned by remember { mutableStateOf(false) }
+    var isTask3Assigned by remember { mutableStateOf(false) }
     var doDishes by remember { mutableStateOf(false) }
     var doGrocery by remember { mutableStateOf(false) }
     var doStudying by remember { mutableStateOf(false) }
     var showAssignableTask by remember { mutableStateOf(false) }
+    var user by remember { mutableStateOf(UserEntity(
+        name = "user",
+        password = "user",
+        privilegeLevel = 1,
+        tasks = null
+    )) }
     Column(
         modifier = Modifier
             .padding(16.dp)
@@ -156,11 +292,45 @@ fun AdminScreen(navController: NavController, userDao: UserDao) {
             fontSize = 20.sp // Change the font size to your desired value
         ), modifier= Modifier
             .padding(20.dp))
+        Button(onClick = {
+
+            navController.navigate("track_screen")
+        }){ Text(text = "Track Activity")}
         Button(onClick ={
             doDishes = false
             doGrocery = false
             doStudying = false
+            GlobalScope.launch(Dispatchers.IO) {
 
+                user = userDao.getUserByName("user")!!
+
+                user.tasks!!.forEach { task ->
+
+                    if (task.taskId.toInt() == 0) {
+
+                        isTask1Assigned = true
+                        if (task.isCompleted == true) {
+                            isTask1Assigned = false
+                        }
+                    }
+                    if (task.taskId.toInt() == 1) {
+
+                        isTask2Assigned = true
+                        if (task.isCompleted == true) {
+                            isTask2Assigned = false
+                        }
+
+                    }
+                    if (task.taskId.toInt() == 2) {
+
+                        isTask3Assigned = true
+                        if (task.isCompleted == true) {
+                            isTask3Assigned = false
+                        }
+                    }
+                }
+
+            }
             showAssignableTask = true
             assignTasksVisibility = 1.0f
             visibility = 0.0f
@@ -169,16 +339,16 @@ fun AdminScreen(navController: NavController, userDao: UserDao) {
 
         }
         Button(onClick = {
-            var tasks : MutableList<String> = mutableListOf("")
+            var tasks : MutableList<Task> = mutableListOf(Task(taskId = 0, taskName = "", isCompleted = false, startTime = null, endTime = null))
             tasks.clear()
             GlobalScope.launch(Dispatchers.IO) {
 
-                val userEntity = userDao.getUserByName("user")
-                if(userEntity!!.tasks!!.isNotEmpty()){
+                user = userDao.getUserByName("user")!!
+                if(user.tasks!!.isNotEmpty()){
 
-                    userEntity!!.tasks = tasks
+                    user.tasks = tasks
 
-                    userDao.updateEntity(userEntity)
+                    userDao.updateEntity(user)
                 }
 
             }
@@ -201,62 +371,80 @@ fun AdminScreen(navController: NavController, userDao: UserDao) {
                     .alpha(assignTasksVisibility)
             ) {
                 Text("Select Tasks to Assign", modifier = Modifier.padding(16.dp))
-                Row() {
-                Checkbox(
-                    checked = doDishes,
-                    onCheckedChange = { doDishes = it },
-                    modifier = Modifier.padding(16.dp)
-                )
-                    Text("Do the Dishes", modifier = Modifier.padding(20.dp))
+                if(!isTask1Assigned) {
+                    Row() {
+                        Checkbox(
+                            checked = doDishes,
+                            onCheckedChange = { doDishes = it },
+                            modifier = Modifier.padding(16.dp)
+                        )
+                        Text("Do the Dishes", modifier = Modifier.padding(20.dp))
 
-            }
-                Row() {
-                    Checkbox(
-                        checked = doGrocery,
-                        onCheckedChange = { doGrocery = it },
-                        modifier = Modifier.padding(16.dp)
-                    )
-                    Text("Buy Grocery", modifier = Modifier.padding(20.dp))
-
+                    }
                 }
-                Row() {
-                    Checkbox(
-                        checked = doStudying,
-                        onCheckedChange = { doStudying = it },
-                        modifier = Modifier.padding(16.dp)
-                    )
-                    Text("Study", modifier = Modifier.padding(20.dp))
+                if(!isTask2Assigned) {
+                    Row() {
+                        Checkbox(
+                            checked = doGrocery,
+                            onCheckedChange = { doGrocery = it },
+                            modifier = Modifier.padding(16.dp)
+                        )
+                        Text("Buy Grocery", modifier = Modifier.padding(20.dp))
 
+                    }
+                }
+                if(!isTask3Assigned) {
+                    Row() {
+                        Checkbox(
+                            checked = doStudying,
+                            onCheckedChange = { doStudying = it },
+                            modifier = Modifier.padding(16.dp)
+                        )
+                        Text("Study", modifier = Modifier.padding(20.dp))
+
+                    }
                 }
                 Button(onClick = {
-                    val tasks : MutableList<String> = mutableListOf("")
-                    tasks.clear()
-                    visibility = 1.0f
-                    assignTasksVisibility = 0.0f
-
-                    if(doDishes){
-
-                        tasks.add("Do the Dishes")
-                    }
-                    if(doGrocery){
-
-                        tasks.add("Do Grocery")
-                    }
-                    if(doStudying){
-
-                        tasks.add("Do Studying")
-                    }
                     GlobalScope.launch(Dispatchers.IO) {
 
-                     var userEntity =  userDao.getUserByName("user")
 
-                        userEntity!!.tasks = tasks
+                        var tasks : MutableList<Task> = mutableListOf(Task(taskId = 0, taskName = "", isCompleted = false, startTime = null, endTime = null))
+                        tasks.clear()
+                        visibility = 1.0f
+                        assignTasksVisibility = 0.0f
 
-                        userDao.updateEntity(userEntity)
+                        if(doDishes){
 
+                            tasks.add(Task(taskId = 0, taskName = "Do the Dishes", isCompleted = false, startTime = null, endTime = null))
+                        }
+                        if(doGrocery){
+
+                            tasks.add(Task(taskId = 1, taskName = "Do Groceries", isCompleted = false, startTime = null, endTime = null))
+                        }
+                        if(doStudying){
+
+                            tasks.add(Task(taskId = 2, taskName = "Do Studying", isCompleted = false, startTime = null, endTime = null))
+                        }
+                         //user = userDao.getUserByName("user")!!
+                        var taskfound = false
+                        tasks.forEach { task ->
+                            taskfound = false
+                            if(user.tasks!!.size != 0) {
+                                user.tasks!!.forEach { userTask ->
+                                    if(userTask.taskId == task.taskId){
+                                        userTask.isCompleted = false
+                                        userTask.startTime = null
+                                        userTask.endTime = null
+                                        taskfound = true
+                                    }
+                                }
+                            }
+                            if(taskfound == false) {
+                                user.tasks!!.add(task)
+                            }
+                        }
+                            userDao.updateEntity(user)
                     }
-
-
                 }) {
 
 
@@ -267,6 +455,10 @@ fun AdminScreen(navController: NavController, userDao: UserDao) {
         }
     }
 }
+
+
+
+
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun TextBoxWithLabel(dataName: String) {
@@ -317,7 +509,14 @@ fun SubmitButton(userDao: UserDao, navController: NavController) {
     var _isUser by remember { mutableStateOf(false) }
     var _isAdmin  by remember { mutableStateOf(false) }
     var databaseUsers by remember { mutableStateOf(emptyList<UserEntity>())}
-        var isButtonClicked by remember { mutableStateOf(false) }
+    var isButtonClicked by remember { mutableStateOf(false) }
+    val user = UserEntity(
+        name = "user",
+        password = "user",
+        privilegeLevel = 1,
+        tasks = null
+    )
+
     Column {
         Button(onClick = {
             visibility = 0.0f

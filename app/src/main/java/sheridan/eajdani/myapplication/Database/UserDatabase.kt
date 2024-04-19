@@ -17,7 +17,13 @@ abstract class UserDatabase : RoomDatabase() {
     companion object{
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("ALTER TABLE user_database ADD COLUMN tasks TEXT")
+                database.execSQL("CREATE TABLE user_database_temp (id INTEGER PRIMARY KEY NOT NULL, name TEXT NOT NULL, password TEXT NOT NULL, privilegeLevel INTEGER NOT NULL, tasks TEXT)")
+
+                // Drop the existing table
+                database.execSQL("DROP TABLE user_database")
+
+                // Rename the temporary table to the original table name
+                database.execSQL("ALTER TABLE user_database_temp RENAME TO user_database")
             }
         }
 
